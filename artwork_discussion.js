@@ -2,21 +2,13 @@
 
 // --- 1) Configure your Firebase project ---
 const firebaseConfig = {
-
-  apiKey: "AIzaSyBAdmTr870R6fRhHnuvgDUGB9HgA2k4Wak",
-
-  authDomain: "artworkdiscussion.firebaseapp.com",
-
-  projectId: "artworkdiscussion",
-
-  storageBucket: "artworkdiscussion.firebasestorage.app",
-
-  messagingSenderId: "563555301717",
-
-  appId: "1:563555301717:web:f94dc00cb1ddb385b397dc",
-
-  measurementId: "G-8F307ZEX79"
-
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
 // Init (compat)
@@ -63,7 +55,7 @@ const els = {
   resetBtn: document.getElementById('resetBtn'),
 };
 
-const sections = []; // {feed, textarea, fileInput, btn, hint, countEl, uploadingEl}
+const sections = []; // {feed, textarea, fileInput, btn, hint, countEl, uploadingEl, previewImg, objectUrl}
 
 function answersRef(i){ return db.ref(`questions/q${i}/answers`); }
 function storagePath(i, file){
@@ -94,7 +86,7 @@ questions.forEach((qText, i) => {
   const side = document.createElement('div');
   side.style.display = 'grid';
   side.style.gap = '8px';
-  side.style.minWidth = '180px';
+  side.style.minWidth = '200px';
 
   const fileWrap = document.createElement('div');
   fileWrap.className = 'file-wrap';
@@ -113,9 +105,14 @@ questions.forEach((qText, i) => {
   uploadingEl.style.display = 'none';
   uploadingEl.textContent = 'Uploading image…';
 
+  const previewImg = document.createElement('img');
+  previewImg.className = 'preview hide';
+  previewImg.alt = 'preview';
+
   side.appendChild(fileWrap);
   side.appendChild(btn);
   side.appendChild(uploadingEl);
+  side.appendChild(previewImg);
 
   const row = document.createElement('div');
   row.className = 'input-row';
@@ -143,8 +140,9 @@ questions.forEach((qText, i) => {
 
   els.app.appendChild(card);
 
-  sections[i] = { feed, textarea, fileInput, btn, hint, countEl, uploadingEl };
+  sections[i] = { feed, textarea, fileInput, btn, hint, countEl, uploadingEl, previewImg, objectUrl: null };
 
+  // handlers
   btn.addEventListener('click', () => submit(i));
   textarea.addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -152,9 +150,24 @@ questions.forEach((qText, i) => {
       submit(i);
     }
   });
+  fileInput.addEventListener('change', () => showPreview(i));
 
   attachFeed(i);
 });
+
+// Show instant local preview when a file is selected
+function showPreview(i){
+  const sec = sections[i];
+  // revoke previous local URL
+  if (sec.objectUrl){ URL.revokeObjectURL(sec.objectUrl); sec.objectUrl = null; }
+  const file = sec.fileInput.files && sec.fileInput.files[0] ? sec.fileInput.files[0] : null;
+  if (!file){ sec.previewImg.src = ''; sec.previewImg.classList.add('hide'); return; }
+  if (!file.type.startsWith('image/')){ sec.hint.innerHTML = '<span class="warn">Please choose an image file.</span>'; return; }
+  const url = URL.createObjectURL(file);
+  sec.objectUrl = url;
+  sec.previewImg.src = url;
+  sec.previewImg.classList.remove('hide');
+}
 
 // --- Live listeners for each question
 function attachFeed(i){
@@ -212,7 +225,6 @@ function addAnswerToList(i, { text, uid, ts, image_url }){
 function sanitizePhrase(s){
   let t = (s || '').trim().replace(/\s+/g,' ');
   if (t.length < 2 || t.length > 140) return '';
-  // simple bad-word gate (extend as needed)
   const banned = [/\bidiot\b/i, /\bkill\b/i];
   for (const re of banned){ if (re.test(t)) return ''; }
   return t;
@@ -220,7 +232,8 @@ function sanitizePhrase(s){
 
 // --- Submit (supports multi-line text + optional single image)
 async function submit(i){
-  const { textarea, fileInput, btn, hint, uploadingEl } = sections[i];
+  const sec = sections[i];
+  const { textarea, fileInput, btn, hint, uploadingEl, previewImg } = sec;
 
   const raw = String(textarea.value || '');
   const pieces = raw.split(/[\n;]+/).map(s => sanitizePhrase(s)).filter(Boolean);
@@ -233,7 +246,6 @@ async function submit(i){
     return;
   }
 
-  // basic client-side checks for image
   if (hasImage){
     if (!file.type.startsWith('image/')){
       hint.innerHTML = '<span class="warn">Please choose an image file.</span>';
@@ -245,11 +257,11 @@ async function submit(i){
     }
   }
 
-  // Cap multi-submit batch size
   const batch = pieces.slice(0, 20);
-
   btn.disabled = true;
+
   try{
+    // Upload (if any) and push entries
     let imageURL = null;
     if (hasImage){
       uploadingEl.style.display = 'block';
@@ -263,13 +275,10 @@ async function submit(i){
     const now = Date.now();
 
     if (batch.length === 0 && imageURL){
-      // image-only post
       await refAns.push({ image_url: imageURL, uid, ts: now });
     } else if (batch.length === 1){
-      // single text; attach image if present
       await refAns.push({ text: batch[0], image_url: imageURL || null, uid, ts: now });
     } else {
-      // multiple texts; attach image to FIRST only, inform user
       let first = true;
       for (const part of batch){
         await refAns.push({ text: part, image_url: (first && imageURL) ? imageURL : null, uid, ts: Date.now() });
@@ -280,15 +289,21 @@ async function submit(i){
       }
     }
 
-    // clear inputs
+    // Clear inputs + local preview immediately
     textarea.value = '';
     if (fileInput.value){ fileInput.value = ''; }
+    if (sec.objectUrl){ URL.revokeObjectURL(sec.objectUrl); sec.objectUrl = null; }
+    previewImg.src = ''; previewImg.classList.add('hide');
+
+    // Positive feedback if not set above
     if (!imageURL || batch.length <= 1){
       hint.innerHTML = '<span class="ok">Submitted!</span>';
     }
   }catch(err){
     console.error(err);
-    hint.innerHTML = '<span class="warn">Send failed. Check Firebase config/rules and try again.</span>';
+    // Surface common errors (e.g., PERMISSION_DENIED)
+    const msg = (err && err.code) ? ` (${err.code})` : '';
+    hint.innerHTML = `<span class="warn">Send failed${msg}. Check Firebase config/rules and try again.</span>`;
   }finally{
     btn.disabled = false;
     uploadingEl.style.display = 'none';
@@ -297,8 +312,8 @@ async function submit(i){
 }
 
 // ---- Save All (JSON / CSV) ----
-els.saveJsonBtn.addEventListener('click', exportJSON);
-els.saveCsvBtn.addEventListener('click', exportCSV);
+els.saveJsonBtn?.addEventListener('click', exportJSON);
+els.saveCsvBtn?.addEventListener('click', exportCSV);
 
 function fetchAll(){
   return db.ref('questions').once('value').then(snap => {
@@ -352,7 +367,7 @@ function downloadBlob(blob, filename){
 }
 
 // ---- Reset (delete all answers for all questions) ----
-els.resetBtn.addEventListener('click', resetAll);
+els.resetBtn?.addEventListener('click', resetAll);
 
 async function resetAll(){
   const sure = confirm('Reset will permanently delete ALL answers for ALL questions.\n\nProceed?');
@@ -361,16 +376,16 @@ async function resetAll(){
   if (!sure2) return;
 
   try{
-    // Clear answers under q0..q19
     const ops = questions.map((_, i) => answersRef(i).set(null));
     await Promise.all(ops);
 
-    // Clear UI feeds
     sections.forEach(sec => {
       sec.feed.innerHTML = '';
       sec.countEl.textContent = '0 total';
       sec.hint.innerHTML = '<span class="ok">All answers cleared.</span>';
       if (sec.fileInput.value){ sec.fileInput.value = ''; }
+      if (sec.objectUrl){ URL.revokeObjectURL(sec.objectUrl); sec.objectUrl = null; }
+      sec.previewImg.src = ''; sec.previewImg.classList.add('hide');
     });
   }catch(err){
     console.error(err);
