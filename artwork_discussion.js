@@ -2,13 +2,23 @@
 
 // --- 1) Configure your Firebase project ---
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+
+  apiKey: "AIzaSyBAdmTr870R6fRhHnuvgDUGB9HgA2k4Wak",
+
+  authDomain: "artworkdiscussion.firebaseapp.com",
+
+  databaseURL: "https://artworkdiscussion-default-rtdb.firebaseio.com",
+
+  projectId: "artworkdiscussion",
+
+  storageBucket: "artworkdiscussion.firebasestorage.app",
+
+  messagingSenderId: "563555301717",
+
+  appId: "1:563555301717:web:f94dc00cb1ddb385b397dc",
+
+  measurementId: "G-8F307ZEX79"
+
 };
 
 // Init (compat)
@@ -55,7 +65,7 @@ const els = {
   resetBtn: document.getElementById('resetBtn'),
 };
 
-const sections = []; // {feed, textarea, fileInput, btn, hint, countEl, uploadingEl, previewImg, objectUrl}
+const sections = []; // {feed, textarea, fileInput, textBtn, imgBtn, hint, countEl, uploadingEl, previewImg, objectUrl}
 
 function answersRef(i){ return db.ref(`questions/q${i}/answers`); }
 function storagePath(i, file){
@@ -82,11 +92,11 @@ questions.forEach((qText, i) => {
   textarea.placeholder = 'Type one or more answers. Put each answer on a new line.';
   textarea.rows = 2;
 
-  // right: vertical controls (file + submit)
+  // right: controls column (file + buttons + preview)
   const side = document.createElement('div');
   side.style.display = 'grid';
   side.style.gap = '8px';
-  side.style.minWidth = '200px';
+  side.style.minWidth = '220px';
 
   const fileWrap = document.createElement('div');
   fileWrap.className = 'file-wrap';
@@ -96,9 +106,21 @@ questions.forEach((qText, i) => {
   fileInput.style.width = '100%';
   fileWrap.appendChild(fileInput);
 
-  const btn = document.createElement('button');
-  btn.className = 'primary';
-  btn.textContent = 'Submit';
+  const btnRow = document.createElement('div');
+  btnRow.style.display = 'grid';
+  btnRow.style.gridTemplateColumns = '1fr 1fr';
+  btnRow.style.gap = '8px';
+
+  const textBtn = document.createElement('button');
+  textBtn.className = 'primary';
+  textBtn.textContent = 'Submit Text';
+
+  const imgBtn = document.createElement('button');
+  imgBtn.className = 'secondary';
+  imgBtn.textContent = 'Upload Image';
+
+  btnRow.appendChild(textBtn);
+  btnRow.appendChild(imgBtn);
 
   const uploadingEl = document.createElement('div');
   uploadingEl.className = 'hint';
@@ -110,7 +132,7 @@ questions.forEach((qText, i) => {
   previewImg.alt = 'preview';
 
   side.appendChild(fileWrap);
-  side.appendChild(btn);
+  side.appendChild(btnRow);
   side.appendChild(uploadingEl);
   side.appendChild(previewImg);
 
@@ -124,7 +146,7 @@ questions.forEach((qText, i) => {
 
   const hint = document.createElement('div');
   hint.className = 'hint';
-  hint.textContent = 'Tip: Cmd/Ctrl+Enter submits. You can submit text, an image, or both.';
+  hint.textContent = 'Tip: Cmd/Ctrl+Enter submits text. Upload images anytime, separate from text.';
   card.appendChild(hint);
 
   const feed = document.createElement('div');
@@ -140,16 +162,17 @@ questions.forEach((qText, i) => {
 
   els.app.appendChild(card);
 
-  sections[i] = { feed, textarea, fileInput, btn, hint, countEl, uploadingEl, previewImg, objectUrl: null };
+  sections[i] = { feed, textarea, fileInput, textBtn, imgBtn, hint, countEl, uploadingEl, previewImg, objectUrl: null };
 
   // handlers
-  btn.addEventListener('click', () => submit(i));
+  textBtn.addEventListener('click', () => submitText(i));
   textarea.addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      submit(i);
+      submitText(i);
     }
   });
+  imgBtn.addEventListener('click', () => submitImage(i));
   fileInput.addEventListener('change', () => showPreview(i));
 
   attachFeed(i);
@@ -158,7 +181,6 @@ questions.forEach((qText, i) => {
 // Show instant local preview when a file is selected
 function showPreview(i){
   const sec = sections[i];
-  // revoke previous local URL
   if (sec.objectUrl){ URL.revokeObjectURL(sec.objectUrl); sec.objectUrl = null; }
   const file = sec.fileInput.files && sec.fileInput.files[0] ? sec.fileInput.files[0] : null;
   if (!file){ sec.previewImg.src = ''; sec.previewImg.classList.add('hide'); return; }
@@ -230,84 +252,82 @@ function sanitizePhrase(s){
   return t;
 }
 
-// --- Submit (supports multi-line text + optional single image)
-async function submit(i){
+// ---- TEXT submit (multi-line, unlimited rounds)
+async function submitText(i){
   const sec = sections[i];
-  const { textarea, fileInput, btn, hint, uploadingEl, previewImg } = sec;
+  const { textarea, textBtn, hint } = sec;
 
   const raw = String(textarea.value || '');
   const pieces = raw.split(/[\n;]+/).map(s => sanitizePhrase(s)).filter(Boolean);
 
-  const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-  const hasImage = !!file;
-
-  if (!pieces.length && !hasImage){
-    hint.innerHTML = '<span class="warn">Add at least one short phrase (2–140 chars) or choose an image.</span>';
+  if (!pieces.length){
+    hint.innerHTML = '<span class="warn">Enter at least one short phrase (2–140 chars each).</span>';
     return;
   }
 
-  if (hasImage){
-    if (!file.type.startsWith('image/')){
-      hint.innerHTML = '<span class="warn">Please choose an image file.</span>';
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024){
-      hint.innerHTML = '<span class="warn">Image too large (max 10MB).</span>';
-      return;
-    }
-  }
-
-  const batch = pieces.slice(0, 20);
-  btn.disabled = true;
+  const batch = pieces.slice(0, 50); // generous, still protective
+  textBtn.disabled = true;
 
   try{
-    // Upload (if any) and push entries
-    let imageURL = null;
-    if (hasImage){
-      uploadingEl.style.display = 'block';
-      const ref = storage.ref(storagePath(i, file));
-      await ref.put(file, { contentType: file.type });
-      imageURL = await ref.getDownloadURL();
-      uploadingEl.style.display = 'none';
+    const ref = answersRef(i);
+    for (const part of batch){
+      await ref.push({ text: part, uid, ts: Date.now() });
     }
-
-    const refAns = answersRef(i);
-    const now = Date.now();
-
-    if (batch.length === 0 && imageURL){
-      await refAns.push({ image_url: imageURL, uid, ts: now });
-    } else if (batch.length === 1){
-      await refAns.push({ text: batch[0], image_url: imageURL || null, uid, ts: now });
-    } else {
-      let first = true;
-      for (const part of batch){
-        await refAns.push({ text: part, image_url: (first && imageURL) ? imageURL : null, uid, ts: Date.now() });
-        first = false;
-      }
-      if (imageURL){
-        hint.innerHTML = '<span class="ok">Posted multiple answers. Image attached to the first.</span>';
-      }
-    }
-
-    // Clear inputs + local preview immediately
     textarea.value = '';
-    if (fileInput.value){ fileInput.value = ''; }
-    if (sec.objectUrl){ URL.revokeObjectURL(sec.objectUrl); sec.objectUrl = null; }
-    previewImg.src = ''; previewImg.classList.add('hide');
-
-    // Positive feedback if not set above
-    if (!imageURL || batch.length <= 1){
-      hint.innerHTML = '<span class="ok">Submitted!</span>';
-    }
+    hint.innerHTML = `<span class="ok">Posted ${batch.length} answer${batch.length>1?'s':''}. You can add more anytime.</span>`;
   }catch(err){
     console.error(err);
-    // Surface common errors (e.g., PERMISSION_DENIED)
     const msg = (err && err.code) ? ` (${err.code})` : '';
-    hint.innerHTML = `<span class="warn">Send failed${msg}. Check Firebase config/rules and try again.</span>`;
+    hint.innerHTML = `<span class="warn">Text submit failed${msg}. Check Firebase rules/config.</span>`;
   }finally{
-    btn.disabled = false;
-    uploadingEl.style.display = 'none';
+    textBtn.disabled = false;
     textarea.focus();
+  }
+}
+
+// ---- IMAGE submit (independent of text)
+async function submitImage(i){
+  const sec = sections[i];
+  const { fileInput, imgBtn, hint, uploadingEl, previewImg } = sec;
+
+  const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+  if (!file){
+    hint.innerHTML = '<span class="warn">Choose an image first.</span>';
+    return;
+  }
+  if (!file.type.startsWith('image/')){
+    hint.innerHTML = '<span class="warn">Please choose a valid image file.</span>';
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024){
+    hint.innerHTML = '<span class="warn">Image too large (max 10MB).</span>';
+    return;
+  }
+
+  imgBtn.disabled = true;
+  uploadingEl.style.display = 'block';
+
+  try{
+    const ref = storage.ref(storagePath(i, file));
+    await ref.put(file, { contentType: file.type });
+    const imageURL = await ref.getDownloadURL();
+
+    await answersRef(i).push({ image_url: imageURL, uid, ts: Date.now() });
+
+    // clear selection + preview (text area remains untouched)
+    if (sec.objectUrl){ URL.revokeObjectURL(sec.objectUrl); sec.objectUrl = null; }
+    fileInput.value = '';
+    previewImg.src = '';
+    previewImg.classList.add('hide');
+
+    hint.innerHTML = '<span class="ok">Image uploaded. You can add or keep adding text anytime.</span>';
+  }catch(err){
+    console.error(err);
+    const msg = (err && err.code) ? ` (${err.code})` : '';
+    hint.innerHTML = `<span class="warn">Image upload failed${msg}. Check Storage rules/config.</span>`;
+  }finally{
+    imgBtn.disabled = false;
+    uploadingEl.style.display = 'none';
   }
 }
 
