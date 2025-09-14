@@ -28,26 +28,26 @@ const storage = firebase.storage();
 
 // --- 2) Questions (render ALL at once) ---
 const questions = [
-  'What color best matches your mood today?',
-  'Name a city you want to visit next.',
-  'Pick a plant that represents you.',
-  'What word do you want to hear more often?',
-  'A sound you love in one phrase:',
-  'Your perfect morning in 5 words:',
-  'A tiny habit you\'re proud of:',
-  'A food that feels like home:',
-  'A superpower (realistic) you want:',
-  'A book or show you recommend (title only):',
-  'A place you feel calm:',
-  'Describe the sky right now:',
-  'Something you\'re learning:',
-  'A phrase that motivates you:',
-  'Name a texture you like:',
-  'A smell you remember:',
-  'One thing you want to make:',
-  'A song for focus (title only):',
-  'A tiny kindness you noticed:',
-  'Three words for this week:'
+  'Artist 1: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 2: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 3: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 4: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 5: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 6: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 7: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 8: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 9: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 10: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 11: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 12: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 13: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 14: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 15: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 16: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 17: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 18: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 19: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 20: Comments on composition, color, balance, symmetry, line/point.'
 ];
 
 // anonymous local user id
