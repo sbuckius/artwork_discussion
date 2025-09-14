@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>20-Question Crowd Answers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="logo">Q</div>
+    <h1>20-Question Crowd Answers <span class="small">Realtime • Firebase</span></h1>
+    <div class="actions">
+      <button id="saveJsonBtn" class="primary">Save All (JSON)</button>
+      <button id="saveCsvBtn">Save All (CSV)</button>
+      <button id="resetBtn" class="danger" title="Delete all answers for all questions">Reset</button>
+    </div>
+  </header>
+
+  <main id="app" class="grid"></main>
+
+  <!-- Firebase v9 compat (safe for file:// and simple hosting) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script defer src="artwork_discussion.js"></script>
+
+  <!--
+  ---- Realtime Database Rules (Console → Rules) ----
+  {
+    "rules": {
+      "questions": {
+        ".read": true,
+        "$qid": {
+          "answers": {
+            ".write": true,
+            "$aid": {
+              ".validate": newData.hasChildren(["uid","ts"]) &&
+                           (!newData.child("text").exists() || (newData.child("text").isString() &&
+                                                                newData.child("text").val().length >= 2 &&
+                                                                newData.child("text").val().length <= 140)) &&
+                           (!newData.child("image_url").exists() || newData.child("image_url").isString()) &&
+                           newData.child("uid").isString() &&
+                           newData.child("ts").isNumber()
+            }
+          }
+        }
+      }
+    }
+  }
+
+  ---- Firebase Storage Rules (Console → Storage → Rules) ----
+  rules_version = '2';
+  service firebase.storage {
+    match /b/{bucket}/o {
+      match /question_uploads/{allPaths=**} {
+        allow read: if true;
+        allow write: if request.resource.size < 10 * 1024 * 1024   // <10MB
+                     && request.resource.contentType.matches('image/.*');
+      }
+    }
+  }
+  -->
+</body>
+</html>
