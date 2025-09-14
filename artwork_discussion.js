@@ -47,7 +47,9 @@ const questions = [
   'Artist 17: Comments on composition, color, balance, symmetry, line/point.',
   'Artist 18: Comments on composition, color, balance, symmetry, line/point.',
   'Artist 19: Comments on composition, color, balance, symmetry, line/point.',
-  'Artist 20: Comments on composition, color, balance, symmetry, line/point.'
+  'Artist 20: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 21: Comments on composition, color, balance, symmetry, line/point.',
+  'Artist 22: Comments on composition, color, balance, symmetry, line/point.'
 ];
 
 // anonymous local user id
