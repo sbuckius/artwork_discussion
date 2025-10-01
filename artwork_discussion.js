@@ -249,7 +249,7 @@ function addAnswerToList(i, { text, uid, ts, image_url }){
 // --- Validation
 function sanitizePhrase(s){
   let t = (s || '').trim().replace(/\s+/g,' ');
-  if (t.length < 2 || t.length > 500) return '';
+  if (t.length < 2 || t.length > 1000) return '';
   const banned = [/\bidiot\b/i, /\bkill\b/i];
   for (const re of banned){ if (re.test(t)) return ''; }
   return t;
@@ -264,7 +264,7 @@ async function submitText(i){
   const pieces = raw.split(/[\n;]+/).map(s => sanitizePhrase(s)).filter(Boolean);
 
   if (!pieces.length){
-    hint.innerHTML = '<span class="warn">Enter at least one short phrase (2–140 chars each).</span>';
+    hint.innerHTML = '<span class="warn">Enter at least one short phrase (2–1000 chars each).</span>';
     return;
   }
 
