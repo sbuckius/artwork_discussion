@@ -249,7 +249,7 @@ function addAnswerToList(i, { text, uid, ts, image_url }){
 // --- Validation
 function sanitizePhrase(s){
   let t = (s || '').trim().replace(/\s+/g,' ');
-  if (t.length < 2 || t.length > 140) return '';
+  if (t.length < 2 || t.length > 500) return '';
   const banned = [/\bidiot\b/i, /\bkill\b/i];
   for (const re of banned){ if (re.test(t)) return ''; }
   return t;
